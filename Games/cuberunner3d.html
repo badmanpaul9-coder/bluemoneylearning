@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Cube Runner 3D</title>
+<style>
+  body { margin: 0; overflow: hidden; background: black; }
+  #info {
+    position: absolute;
+    top: 10px; left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 18px;
+    z-index: 9999;
+    user-select: none;
+    opacity: 0;
+    transition: opacity 0.75s ease;
+  }
+  #score {
+    position: absolute;
+    top: 40px; left: 50%;
+    transform: translateX(-50%);
+    color: red;
+    font-family: Arial, sans-serif;
+    font-size: 22px;
+    font-weight: normal;
+    user-select: none;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.75s ease;
+  }
+  #level {
+    position: absolute;
+    top: 70px; left: 50%;
+    transform: translateX(-50%);
+    color: yellow;
+    font-family: Arial, sans-serif;
+    font-size: 22px;
+    font-weight: normal;
+    user-select: none;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.75s ease;
+  }
+  #startScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: black;
+    color: #00ff00;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+    cursor: pointer;
+    z-index: 10000;
+    will-change: transform, opacity;
+  }
+  #startScreen h1 {
+    font-size: 4rem;
+    margin: 0 0 20px;
+    text-shadow: 0 0 10px #00ff00;
+    pointer-events: none;
+  }
+  #startScreen p {
+    font-size: 1.5rem;
+    color: #ff0000;
+    text-shadow: 0 0 8px #ff0000;
+    pointer-events: none;
+  }
+
+  /* Dead screen overlay */
+  #deadScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: black;
+    color: red;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 11000;
+    user-select: none;
+  }
+  #deadScreen h1 {
+    font-size: 5rem;
+    margin-bottom: 30px;
+    text-shadow: 0 0 15px red;
+  }
+  #deadScreen button {
+    font-size: 1.5rem;
+    margin: 10px;
+    padding: 10px 30px;
+    cursor: pointer;
+    border: 2px solid red;
+    background: transparent;
+    color: red;
+    border-radius: 6px;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  #deadScreen button:hover {
+    background-color: red;
+    color: black;
+  }
+</style>
+</head>
+<body>
+<div id="startScreen">
+  <h1>Cube Runner 3D</h1>
+  <p>Click or press Space/W to start</p>
+</div>
+<div id="info">Space/W: Jump | Left/Right or A/D: Move side to side | Avoid red kill bricks</div>
+<div id="score">Score: 0</div>
+<div id="level">Level: 0</div>
+<div id="deadScreen">
+  <h1>You Died</h1>
+  <div>
+    <button id="respawnBtn">Respawn</button>
+    <button id="backToTitleBtn">Back to Title Screen</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.153.0/build/three.min.js"></script>
+<script>
+  let gameStarted = false;
+  let gameOver = false;
+
+  const startScreen = document.getElementById('startScreen');
+  const info = document.getElementById('info');
+  const scoreDisplay = document.getElementById('score');
+  const levelDisplay = document.getElementById('level');
+  const deadScreen = document.getElementById('deadScreen');
+  const respawnBtn = document.getElementById('respawnBtn');
+  const backToTitleBtn = document.getElementById('backToTitleBtn');
+
+  let mouseX = 0, mouseY = 0;
+  window.addEventListener('mousemove', e => {
+    mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    mouseY = (e.clientY / window.innerHeight) * 2 - 1;
+  });
+
+  function tiltTitle() {
+    if(gameStarted) return;
+    const maxTiltX = 10; 
+    const maxTiltY = 15;
+    const rotateX = maxTiltX * mouseY;
+    const rotateY = maxTiltY * mouseX;
+    startScreen.style.transform = `perspective(800px) rotateX(${-rotateX}deg) rotateY(${rotateY}deg)`;
+    requestAnimationFrame(tiltTitle);
+  }
+  tiltTitle();
+
+  function easeInOutQuad(t) {
+    return t<0.5 ? 2*t*t : -1+(4-2*t)*t;
+  }
+
+  function fadeInUI(duration = 750) {
+    info.style.transition = `opacity ${duration}ms ease`;
+    scoreDisplay.style.transition = `opacity ${duration}ms ease`;
+    levelDisplay.style.transition = `opacity ${duration}ms ease`;
+    info.style.opacity = '1';
+    scoreDisplay.style.opacity = '1';
+    levelDisplay.style.opacity = level > 0 ? '1' : '0';
+    info.style.zIndex = '9999';
+    scoreDisplay.style.zIndex = '9999';
+    levelDisplay.style.zIndex = '9999';
+  }
+
+  function hideUI() {
+    info.style.opacity = '0';
+    scoreDisplay.style.opacity = '0';
+    levelDisplay.style.opacity = '0';
+  }
+
+  function showDeadScreen() {
+    deadScreen.style.display = 'flex';
+    hideUI();
+  }
+  function hideDeadScreen() {
+    deadScreen.style.display = 'none';
+  }
+
+  function startGame() {
+    if(gameStarted) return;
+    gameStarted = true;
+    gameOver = false;
+
+    const duration = 1500; // startScreen fade/move duration
+    const startTime = performance.now();
+
+    function animateFade(time) {
+      const elapsed = time - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeInOutQuad(progress);
+      startScreen.style.opacity = 1 - easedProgress;
+      startScreen.style.transform = `perspective(800px) rotateX(0deg) rotateY(0deg) translateY(${-easedProgress * 110}vh)`;
+      if(progress < 1) {
+        requestAnimationFrame(animateFade);
+      } else {
+        startScreen.style.display = 'none';
+        resetGame();
+      }
+    }
+    requestAnimationFrame(animateFade);
+  }
+
+  startScreen.addEventListener('click', startGame);
+  window.addEventListener('keydown', e => {
+    if(!gameStarted && (e.code === 'Space' || e.code === 'KeyW')) startGame();
+  });
+
+  respawnBtn.addEventListener('click', () => {
+    hideDeadScreen();
+    resetGame();
+  });
+
+  backToTitleBtn.addEventListener('click', () => {
+    hideDeadScreen();
+    resetGame(true);
+    gameStarted = false;
+    startScreen.style.display = 'flex';
+    startScreen.style.opacity = '1';
+    startScreen.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) translateY(0)';
+    hideUI();
+  });
+
+  // --- Three.js setup and game code ---
+
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  scene.add(ambientLight);
+
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  directionalLight.position.set(0, 5, 10);
+  scene.add(directionalLight);
+
+  const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const playerMaterial = new THREE.MeshStandardMaterial({
+    color: 0x00ff00,
+    emissive: 0x33ff33,
+    emissiveIntensity: 0.6,
+    roughness: 0.4,
+    metalness: 0.1
+  });
+  const player = new THREE.Mesh(playerGeometry, playerMaterial);
+  player.position.set(0, 0, 0);
+  scene.add(player);
+
+  const killBricks = [];
+  const wallSegments = [];
+  const speedBoosts = [];
+
+  function createKillBrick(zPos) {
+    const width = 1 + Math.random() * 2;
+    const height = 0.5 + Math.random() * 1.5;
+    const depth = 1 + Math.random() * 2;
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = new THREE.MeshStandardMaterial({color: 0xff0000});
+    const brick = new THREE.Mesh(geometry, material);
+    const xPos = (Math.random() * 2 - 1) * 4.2;
+    brick.position.set(xPos, height / 2, zPos);
+    scene.add(brick);
+    killBricks.push(brick);
+    brick.passed = false;
+  }
+
+  function createWallSegment(xPos, zPos) {
+    const width = 0.5;
+    const height = 5;
+    const depth = 1;
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = new THREE.MeshStandardMaterial({color: 0x0000ff});
+    const segment = new THREE.Mesh(geometry, material);
+    segment.position.set(xPos, height / 2, zPos);
+    scene.add(segment);
+    wallSegments.push(segment);
+  }
+
+  function generateWallLine(zStart) {
+    const gap = 2.5;
+    const segmentCount = 3;
+    for(let i = 0; i < segmentCount; i++) {
+      createWallSegment(-6, zStart + i * (gap * 2));
+      createWallSegment(6, zStart + i * (gap * 2));
+    }
+  }
+
+  function createSpeedBoost(zPos) {
+    const geometry = new THREE.BoxGeometry(8, 0.2, 4.5);
+    const material = new THREE.MeshStandardMaterial({color: 0xFFFF00});
+    const boost = new THREE.Mesh(geometry, material);
+    boost.position.set(0, 0.1, zPos);
+    scene.add(boost);
+    speedBoosts.push(boost);
+    boost.passed = false;
+  }
+
+  let velocityY = 0;
+  const gravity = -0.04;
+  const jumpStrength = 0.7;
+  let isOnGround = true;
+
+  const tunnelRadius = 4.2;
+  const sideSpeed = 0.1;
+  let targetX = 0;
+
+  const keys = {};
+  window.addEventListener('keydown', e => keys[e.code] = true);
+  window.addEventListener('keyup', e => keys[e.code] = false);
+
+  window.addEventListener('keydown', (e) => {
+    if(!gameStarted || gameOver) return;
+    if((e.code === 'Space' || e.code === 'KeyW') && isOnGround) {
+      velocityY = jumpStrength;
+      isOnGround = false;
+    }
+  });
+
+  let speed = 0.12;
+
+  let frameCount = 0;
+  let score = 0;
+  let level = 0;
+  let lastBoostTime = 0;
+  const boostInterval = 30000; // 30 seconds in ms
+
+  function boxCollision(a, b) {
+    return (Math.abs(a.position.x - b.position.x) * 2 < (a.geometry.parameters.width + b.geometry.parameters.width)) &&
+           (Math.abs(a.position.y - b.position.y) * 2 < (a.geometry.parameters.height + b.geometry.parameters.height)) &&
+           (Math.abs(a.position.z - b.position.z) * 2 < (a.geometry.parameters.depth + b.geometry.parameters.depth));
+  }
+
+  function resetGame(fromTitle = false) {
+    gameOver = false;
+    velocityY = 0;
+    isOnGround = true;
+    player.position.set(0, 0, 0);
+    targetX = 0;
+    score = 0;
+    level = 0;
+    scoreDisplay.textContent = 'Score: 0';
+    levelDisplay.textContent = 'Level: 0';
+
+    for (const b of killBricks) scene.remove(b);
+    killBricks.length = 0;
+
+    for (const w of wallSegments) scene.remove(w);
+    wallSegments.length = 0;
+
+    for (const b of speedBoosts) scene.remove(b);
+    speedBoosts.length = 0;
+
+    camera.position.set(0, 2, 8);
+
+    hideUI();
+
+    lastBoostTime = performance.now();
+
+    animate();
+
+    // After 3 seconds fade in UI over 0.75s if not from title screen
+    if (!fromTitle) {
+      setTimeout(() => {
+        fadeInUI(750);
+      }, 3000);
+    }
+  }
+
+  function endGame() {
+    gameOver = true;
+    showDeadScreen();
+  }
+
+  function animate() {
+    if(!gameStarted || gameOver) return;
+
+    requestAnimationFrame(animate);
+
+    // Side movement input
+    if(keys['ArrowLeft'] || keys['KeyA']) targetX = Math.max(targetX - sideSpeed, -tunnelRadius);
+    if(keys['ArrowRight'] || keys['KeyD']) targetX = Math.min(targetX + sideSpeed, tunnelRadius);
+
+    player.position.x += (targetX - player.position.x) * 0.2;
+
+    velocityY += gravity;
+    player.position.y += velocityY;
+    if(player.position.y <= 0) {
+      player.position.y = 0;
+      velocityY = 0;
+      isOnGround = true;
+    }
+
+    player.position.z -= speed;
+
+    // Spawn kill bricks if less than 10 and every 60 frames (~1s)
+    if(killBricks.length < 10 && frameCount % 60 === 0) {
+      createKillBrick(player.position.z - 30 - Math.random() * 20);
+    }
+
+    // Spawn wall segments every 40 frames (~0.66s)
+    if(frameCount % 40 === 0) {
+      generateWallLine(player.position.z - 50);
+    }
+
+    // Spawn speed boosts every ~30 seconds after first 30 seconds (no boost at start)
+    if(performance.now() - lastBoostTime > boostInterval) {
+      createSpeedBoost(player.position.z - 60);
+      lastBoostTime = performance.now();
+    }
+
+    // Kill bricks update
+    for(let i = killBricks.length - 1; i >= 0; i--) {
+      const b = killBricks[i];
+      b.position.z += speed;
+
+      if(b.position.z > player.position.z + 5) {
+        scene.remove(b);
+        killBricks.splice(i, 1);
+        continue;
+      }
+
+      if(boxCollision(player, b)) {
+        endGame();
+        break;
+      }
+
+      if(!b.passed && b.position.z > player.position.z) {
+        b.passed = true;
+        score++;
+        scoreDisplay.textContent = 'Score: ' + score;
+        if(score === 1) fadeInUI(750); // Show score and info UI after first score
+      }
+    }
+
+    // Speed boosts update
+    for(let i = speedBoosts.length - 1; i >= 0; i--) {
+      const boost = speedBoosts[i];
+      boost.position.z += speed;
+
+      if(boost.position.z > player.position.z + 5) {
+        scene.remove(boost);
+        speedBoosts.splice(i, 1);
+        continue;
+      }
+
+      if(!boost.passed && boxCollision(player, boost)) {
+        boost.passed = true;
+        speed += 0.02;
+        level++;
+        levelDisplay.textContent = 'Level: ' + level;
+        if(level === 1) {
+          // Show level UI only after first boost
+          levelDisplay.style.opacity = '1';
+        }
+      }
+    }
+
+    // Wall segments update
+    for(let i = wallSegments.length - 1; i >= 0; i--) {
+      const w = wallSegments[i];
+      w.position.z += speed;
+
+      if(w.position.z > player.position.z + 10) {
+        scene.remove(w);
+        wallSegments.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Camera follow player with lerp for smoothness
+    const cameraLerpSpeed = 0.1;
+    camera.position.x += (player.position.x - camera.position.x) * cameraLerpSpeed;
+    camera.position.y += (player.position.y + 2 - camera.position.y) * cameraLerpSpeed;
+    camera.position.z = player.position.z + 8;
+
+    camera.lookAt(player.position.x, player.position.y, player.position.z - 10);
+
+    frameCount++;
+    renderer.render(scene, camera);
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+</body>
+</html>
