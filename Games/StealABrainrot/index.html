@@ -119,7 +119,6 @@
           productName: "BikeOfHell",
           productVersion: "0.1",
         };
-        // Ensure StartUnityInstance is called only after config is set
         if (IsLocalHost() || syncInit) StartUnityInstance_IfUnloaded();
       });
 
@@ -152,8 +151,6 @@
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
         container.className = "unity-mobile";
       }
-
-      // The background image when loading the game. When building a build, the code changes depending on the project settings.
 
       loadingCover.style.display = "";
 
@@ -190,79 +187,8 @@
         }
       });
 
-      function InstallBlurFocusBlocker() {
-        if (!("onblur" in document)) return;
-        if (window.blurFocusHandlersInstalled) return;
-
-        window.addEventListener("blur", function () {
-          let blockerButton = document.createElement("button");
-          blockerButton.style.position = "fixed";
-          blockerButton.style.top = "0";
-          blockerButton.style.left = "0";
-          blockerButton.style.width = "100%";
-          blockerButton.style.height = "100%";
-          blockerButton.style.zIndex = "9999";
-          blockerButton.style.backgroundColor = "rgba(0, 0, 0, 0)";
-          blockerButton.style.border = "none";
-          blockerButton.style.cursor = "default";
-
-          document.body.appendChild(blockerButton);
-
-          function removeBlocker() {
-            if (blockerButton && blockerButton.parentNode) {
-              blockerButton.parentNode.removeChild(blockerButton);
-            }
-            window.removeEventListener("focus", removeBlocker);
-          }
-
-          window.addEventListener("focus", removeBlocker);
-        });
-
-        window.blurFocusHandlersInstalled = true;
-      }
-
-      function FocusGame() {
-        canvas.focus();
-      }
-
-      function SetVisibility(visibility) {
-        if (ysdk !== null && initGame === true && isVisibility !== visibility) {
-          isVisibility = visibility;
-          if (!visibility) {
-            YG2Instance("SetFocusWindowGame", "false");
-          } else {
-            YG2Instance("SetFocusWindowGame", "true");
-          }
-        }
-      }
-
-      // ... rest of your script remains unchanged
-
       const script = document.createElement("script");
       script.src = loaderUrl;
-      script.onload = () => {
-        StartUnityInstance = function () {
-          createUnityInstance(canvas, config, (progress) => {
-            spinner.style.display = "none";
-            progressBarEmpty.style.display = "";
-            const adjustedProgress = Math.max(progress, 0.05);
-            progressBarFull.style.width = `${100 * adjustedProgress}%`;
-          })
-            .then((unityInstance) => {
-              ygGameInstance = unityInstance;
-              loadingCover.style.background = "";
-              loadingCover.style.display = "none";
-            })
-            .catch((message) => {
-              console.error(message);
-            });
-        };
-
-        InstallBlurFocusBlocker();
-
-        if (IsLocalHost() || syncInit) StartUnityInstance_IfUnloaded();
-      };
-
       document.body.appendChild(script);
     </script>
   </body>
