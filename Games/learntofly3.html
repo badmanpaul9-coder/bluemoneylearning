@@ -71,7 +71,7 @@ loadScripts([(gamDir+"data1.js"), (gamDir+"data2.js")], function (error){
     frame.style.height = '100%';
     frame.style.margin = '0';
     frame.style.padding = '0';
-    frame.src = "g/Ruffle/player.html?channel="+channel;
+    frame.src = "https://cdn.jsdelivr.net/gh/bluemoneylearning/bluemoneylearning@latest/Games/g/Ruffle/player.html?channel="+channel;
     document.body.appendChild(frame);
     frame.onload = function() {
      bc.postMessage({type: "swf", data: dataURL});

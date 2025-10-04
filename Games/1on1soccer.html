@@ -2,7 +2,7 @@
 <html>
 <body style="width:100vw;height:100vh;margin:0;padding:0;overflow:hidden">
 <script>
-var gamPath = "g/Ruffle/swfs/1on1soccer.js";
+var gamPath = "https://cdn.jsdelivr.net/gh/bluemoneylearning/bluemoneylearning@main/Games/g/Ruffle/swfs/1on1soccer.js";
 function loadScripts(scripts, callback){
   var loadedCount = 0;
   function scriptLoaded(){
@@ -68,7 +68,7 @@ loadScripts([gamPath], function (error){
     frame.style.height = '100%';
     frame.style.margin = '0';
     frame.style.padding = '0';
-    frame.src = "g/Ruffle/player.html?channel="+channel;
+    frame.src = "https://cdn.jsdelivr.net/gh/bluemoneylearning/bluemoneylearning@latest/Games/g/Ruffle/player.html?channel="+channel;
     document.body.appendChild(frame);
     frame.onload = function() {
      bc.postMessage({type: "swf", data: window.data});
