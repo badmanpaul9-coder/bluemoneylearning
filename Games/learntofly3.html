@@ -71,7 +71,24 @@ loadScripts([(gamDir+"data1.js"), (gamDir+"data2.js")], function (error){
     frame.style.height = '100%';
     frame.style.margin = '0';
     frame.style.padding = '0';
-    frame.src = "https://cdn.jsdelivr.net/gh/bluemoneylearning/bluemoneylearning@latest/Games/g/Ruffle/player.html?channel="+channel;
+    const url = "https://cdn.jsdelivr.net/gh/bluemoneylearning/bluemoneylearning@latest/Games/g/Ruffle/player.html?channel=" + channel;
+
+fetch(url)
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.text();
+  })
+  .then(html => {
+    const iframeDocument = frame.contentDocument || frame.contentWindow.document;
+    iframeDocument.open();
+    iframeDocument.write(html);
+    iframeDocument.close();
+  })
+  .catch(error => {
+    console.error('There was a problem with the fetch operation:', error);
+  });
     document.body.appendChild(frame);
     frame.onload = function() {
      bc.postMessage({type: "swf", data: dataURL});
